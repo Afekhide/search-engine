@@ -1,0 +1,32 @@
+[dbconfig]
+uri = "mongodb://localhost:27017"
+database = "search_engine"
+
+[threadpoolconfig]
+# Default thread counts used across parallel operations
+crawler_workers = 8
+indexer_workers = 8
+
+[indexerconfig]
+# Batch sizes for bulk writes
+bulk_batch_size = 200
+# Maximum pages to index per run (0 = unlimited)
+max_pages_per_run = 0
+# Text excerpt length for previews
+excerpt_max_chars = 400
+
+[crawler]
+# Network configuration
+http_timeout_secs = 15
+http_max_content_mb = 5
+crawl_delay_secs = 0.0
+same_domain_only = true
+
+[search]
+# API defaults for search limits
+default_limit = 10
+max_limit = 50
+
+[logging]
+# Logging level: DEBUG, INFO, WARNING, ERROR
+level = "INFO" 
