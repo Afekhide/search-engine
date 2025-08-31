@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterable, List
 
 from search_engine.indexer import index_pages, index_pages_parallel
-from search_engine.crawler import FetchedPage
+from search_engine.fetch_contents import FetchedPage
 from search_engine.config import INDEXER_WORKERS, INDEX_BULK_BATCH_SIZE
 from search_engine.logger import get_logger
 
@@ -30,7 +30,7 @@ def _read_jsonl(path: Path) -> Iterable[FetchedPage]:
 
 def _parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="Index crawled JSONL into MongoDB")
-	parser.add_argument("--input", required=True, help="Path to JSONL file produced by run_crawler.py")
+	parser.add_argument("--input", required=True, help="Path to JSONL file produced by run_fetch_contents.py")
 	parser.add_argument("--parallel", action="store_true", help="Use multi-threaded indexer")
 	parser.add_argument("--workers", type=int, default=INDEXER_WORKERS, help="Number of worker threads when using --parallel")
 	parser.add_argument("--batch-size", type=int, default=INDEX_BULK_BATCH_SIZE, help="Bulk write batch size")

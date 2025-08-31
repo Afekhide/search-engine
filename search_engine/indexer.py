@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from pymongo import UpdateOne
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .crawler import FetchedPage
+from .fetch_contents import FetchedPage
 from .db import documents_collection, upsert_document
 from .text import normalize_text_for_index, summarize_text
 from .config import INDEX_EXCERPT_MAX_CHARS

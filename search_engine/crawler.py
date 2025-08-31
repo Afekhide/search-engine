@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .config import HTTP_TIMEOUT_SECS, HTTP_MAX_CONTENT_MB, CRAWL_DELAY_SECS
 from .logger import get_logger
-from .url_tracker import is_url_crawled, add_urls_to_queue
+from .url_tracker import is_url_crawled, add_urls_to_queue, mark_url_crawled, mark_urls_crawled
 
 
 log = get_logger(__name__)
@@ -121,7 +121,6 @@ def discover_links_from_seeds(seeds: Iterable[str], same_domain_only: bool = Tru
 		log.info(f"Discovered {len(filtered_links)} links from {seed_url} (total unique: {len(all_discovered_links)})")
 		
 		# Mark seed URL as processed for link discovery
-		from .url_tracker import mark_url_crawled
 		mark_url_crawled(seed_url, result.final_url)
 		
 		if CRAWL_DELAY_SECS > 0:
@@ -191,7 +190,6 @@ def discover_links_parallel(seeds: Iterable[str], same_domain_only: bool = True,
 	
 	# Mark all processed URLs in batch
 	if processed_urls:
-		from .url_tracker import mark_urls_crawled
 		mark_urls_crawled(processed_urls, processed_final_urls)
 	
 	# Add all discovered links to the queue for future content fetching

@@ -1,8 +1,7 @@
 import logging
 import os
 from typing import Optional
-
-from .config import CONFIG_PATH  # ensure config is parsed before logging if needed
+from pathlib import Path
 
 try:
 	# Python 3.11+ tomllib
@@ -15,7 +14,12 @@ _configured = False
 
 def _read_level_from_toml() -> str:
 	try:
-		with open(CONFIG_PATH, "rb") as f:
+		# Get config path directly without importing config module
+		config_path = Path(os.getenv("CONFIG_TOML", "config.toml"))
+		if not config_path.exists():
+			return ""
+		
+		with open(config_path, "rb") as f:
 			cfg = toml.load(f)
 			lvl = ((cfg or {}).get("logging") or {}).get("level")
 			if isinstance(lvl, str) and lvl:
