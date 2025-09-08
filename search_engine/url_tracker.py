@@ -5,6 +5,7 @@ from typing import List, Set, Optional
 
 from pymongo import ASCENDING
 from pymongo.collection import Collection
+from pymongo import UpdateOne
 
 from .db import get_db
 from .logger import get_logger
@@ -65,7 +66,7 @@ def mark_urls_crawled(urls: List[str], final_urls: Optional[List[str]] = None) -
 	_ensure_urls_indexes()
 	
 	now = datetime.utcnow()
-	operations = []
+	operations: List[UpdateOne] = []
 	
 	for i, url in enumerate(urls):
 		doc = {
@@ -77,21 +78,19 @@ def mark_urls_crawled(urls: List[str], final_urls: Optional[List[str]] = None) -
 		if final_urls and i < len(final_urls) and final_urls[i] != url:
 			doc["final_url"] = final_urls[i]
 		
-		operations.append({
-			"updateOne": {
-				"filter": {"url": url},
-				"update": {
-					"$set": doc,
-					"$setOnInsert": {"created_at": now}
-				},
-				"upsert": True
-			}
-		})
+		operations.append(UpdateOne(
+			{"url": url},
+			{
+				"$set": doc,
+				"$setOnInsert": {"created_at": now}
+			},
+			upsert=True
+		))
 	
 	if operations:
 		try:
 			result = urls_col.bulk_write(operations, ordered=False)
-			log.info(f"Marked {len(urls)} URLs as crawled: {result.upserted_count} new, {result.modified_count} updated")
+			log.info(f"Marked {len(urls)} URLs as crawled: upserted={result.upserted_count} modified={result.modified_count}")
 		except Exception as e:
 			log.warning(f"Failed to mark URLs as crawled: {e}")
 
@@ -132,28 +131,26 @@ def add_urls_to_queue(urls: List[str]) -> None:
 	_ensure_urls_indexes()
 	
 	now = datetime.utcnow()
-	operations = []
+	operations: List[UpdateOne] = []
 	
 	for url in urls:
-		operations.append({
-			"updateOne": {
-				"filter": {"url": url},
-				"update": {
-					"$set": {
-						"url": url,
-						"crawled": False,
-						"updated_at": now
-					},
-					"$setOnInsert": {"created_at": now}
+		operations.append(UpdateOne(
+			{"url": url},
+			{
+				"$set": {
+					"url": url,
+					"crawled": False,
+					"updated_at": now
 				},
-				"upsert": True
-			}
-		})
+				"$setOnInsert": {"created_at": now}
+			},
+			upsert=True
+		))
 	
 	if operations:
 		try:
 			result = urls_col.bulk_write(operations, ordered=False)
-			log.info(f"Added {len(urls)} URLs to queue: {result.upserted_count} new, {result.modified_count} updated")
+			log.info(f"Queued {len(urls)} URLs: upserted={result.upserted_count} modified={result.modified_count}")
 		except Exception as e:
 			log.warning(f"Failed to add URLs to queue: {e}")
 

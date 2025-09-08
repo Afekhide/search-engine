@@ -4,11 +4,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# TOML parsing: use tomllib if Python >=3.11, else tomli
-try:  # Python 3.11+
+try:  
 	import tomllib as toml
-except Exception:  # pragma: no cover
-	import tomli as toml  # type: ignore
+except Exception:
+	import tomli as toml
 
 load_dotenv()
 
