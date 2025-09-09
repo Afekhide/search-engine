@@ -6,19 +6,12 @@ from functools import lru_cache
 from typing import Iterable, List
 
 import nltk
-from nltk.corpus import stopwords, wordnet
-from nltk.stem import PorterStemmer, WordNetLemmatizer
+from nltk.stem import PorterStemmer
 
 from .logger import get_logger
 
 
 log = get_logger(__name__)
-
-NLTK_RESOURCES = [
-	("corpora", "stopwords"),
-	("corpora", "wordnet"),
-	("tokenizers", "punkt"),
-]
 
 # Fallback stopwords if NLTK fails
 FALLBACK_STOPWORDS = {
@@ -41,32 +34,6 @@ FALLBACK_STOPWORDS = {
 }
 
 
-def _ensure_nltk() -> None:
-	"""Download NLTK resources if they don't exist."""
-	log.info("Ensuring NLTK resources are available")
-	for resource_type, resource_name in NLTK_RESOURCES:
-		try:
-			nltk.data.find(f"{resource_type}/{resource_name}")
-			log.debug(f"NLTK resource {resource_name} already available")
-		except LookupError:
-			log.info(f"Downloading NLTK resource: {resource_name}")
-			try:
-				nltk.download(resource_name, quiet=True)
-				log.info(f"Successfully downloaded NLTK resource: {resource_name}")
-			except Exception as e:
-				log.error(f"Failed to download NLTK resource {resource_name}: {e}")
-				raise
-
-
-def _ensure_wordnet_loaded() -> None:
-	"""Ensure WordNet is fully loaded for multi-threaded use."""
-	try:
-		wordnet.ensure_loaded()
-		log.debug("WordNet ensure_loaded() completed")
-	except Exception as e:
-		log.warning(f"WordNet ensure_loaded() failed: {e}")
-
-
 @dataclass
 class NormalizedText:
 	original_text: str
@@ -74,41 +41,19 @@ class NormalizedText:
 	joined: str
 
 
+@lru_cache(maxsize=1)
 def _get_stopwords_set() -> set[str]:
-	"""Get English stopwords set, ensuring NLTK resources are available first."""
-	_ensure_nltk()
+	"""Load English stopwords directly from the corpus file; fall back if unavailable."""
 	try:
-		# Try multiple approaches to load stopwords
-		try:
-			# Method 1: Direct access
-			stop_words = set(stopwords.words("english"))
-			log.debug(f"Loaded {len(stop_words)} stopwords from NLTK")
-			return stop_words
-		except Exception as e1:
-			log.warning(f"Method 1 failed: {e1}")
-			try:
-				# Method 2: Try downloading again and accessing
-				nltk.download("stopwords", quiet=True)
-				stop_words = set(stopwords.words("english"))
-				log.debug(f"Loaded {len(stop_words)} stopwords from NLTK (retry)")
-				return stop_words
-			except Exception as e2:
-				log.warning(f"Method 2 failed: {e2}")
-				# Method 3: Manual access to the file
-				try:
-					from nltk.data import find
-					stopwords_path = find("corpora/stopwords")
-					with open(f"{stopwords_path}/english", "r", encoding="utf-8") as f:
-						stop_words = set(line.strip() for line in f if line.strip())
-					log.debug(f"Loaded {len(stop_words)} stopwords from file")
-					return stop_words
-				except Exception as e3:
-					log.warning(f"Method 3 failed: {e3}")
-					raise
+		from nltk.data import find
+		path = find("corpora/stopwords/english")
+		with open(path, "r", encoding="utf-8") as f:
+			words = {line.strip() for line in f if line.strip()}
+			if words:
+				return words
 	except Exception as e:
-		log.error(f"All methods failed to load stopwords: {e}")
-		log.info("Using fallback stopwords list")
-		return FALLBACK_STOPWORDS
+		log.warning(f"Using built-in stopwords due to error: {e}")
+	return FALLBACK_STOPWORDS
 
 
 _word_pattern = re.compile(r"[A-Za-z][A-Za-z\-']+")
@@ -119,22 +64,22 @@ def tokenize(text: str) -> List[str]:
 	return _word_pattern.findall(text.lower())
 
 
+@lru_cache(maxsize=50000)
+def normalize_token(token: str) -> str:
+	"""Normalize a single token quickly using stemming only (no WordNet)."""
+	stemmer = PorterStemmer()
+	return stemmer.stem(token)
+
+
 def normalize_text_for_index(text: str) -> NormalizedText:
-	"""Normalize text for indexing with stemming and lemmatization."""
-	_ensure_nltk()
-	_ensure_wordnet_loaded()
-	
+	"""Normalize text for indexing using stopword removal + stemming (no WordNet)."""
 	stop = _get_stopwords_set()
-	lemmatizer = WordNetLemmatizer()
 	stemmer = PorterStemmer()
 
 	raw_tokens = tokenize(text)
 	filtered_tokens = [t for t in raw_tokens if t not in stop and len(t) > 1]
-	lemmatized = [lemmatizer.lemmatize(t) for t in filtered_tokens]
-	stemmed = [stemmer.stem(t) for t in lemmatized]
+	stemmed = [stemmer.stem(t) for t in filtered_tokens]
 	joined = " ".join(stemmed)
-	
-	log.debug(f"Normalized text: {len(raw_tokens)} raw tokens → {len(filtered_tokens)} filtered → {len(stemmed)} stemmed")
 	return NormalizedText(original_text=text, tokens=stemmed, joined=joined)
 
 

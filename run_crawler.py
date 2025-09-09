@@ -12,7 +12,7 @@ log = get_logger(__name__)
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Discover links from seed URLs")
-    parser.add_argument("seeds_file", help="Path to a text file with one seed URL per line")
+    parser.add_argument("--seeds_file", help="Path to a text file with one seed URL per line")
     parser.add_argument("--same-domain-only", action="store_true", help="Restrict link discovery to the same domain as seeds")
     parser.add_argument("--parallel", action="store_true", help="Use multi-threaded link discovery")
     parser.add_argument("--workers", type=int, default=CRAWLER_WORKERS, help="Number of worker threads when using --parallel")
