@@ -60,7 +60,7 @@ def fetch_url_for_links(url: str) -> Optional[LinkDiscoveryResult]:
 	html = resp.text
 	soup = BeautifulSoup(html, "html.parser")
 	title = _clean_title(soup)
-	links = extract_links(url, html)
+	links = extract_links(str(resp.url), html)
 	
 	log.debug(f"Discovered {len(links)} links from {url} → {resp.url}")
 	return LinkDiscoveryResult(url=url, final_url=str(resp.url), discovered_links=links, title=title)
@@ -70,19 +70,30 @@ _link_pattern = re.compile(r"^https?://", re.I)
 
 
 def extract_links(base_url: str, html: str) -> List[str]:
+	"""Extract and resolve all links from HTML content."""
+	from urllib.parse import urljoin, urlparse
+	
 	soup = BeautifulSoup(html, "html.parser")
 	links: List[str] = []
+	
 	for a in soup.find_all("a", href=True):
 		href: str = a["href"].strip()
+		
+		# Skip anchor links
 		if href.startswith("#"):
 			continue
-		if href.startswith("/"):
-			m = re.match(r"^(https?://[^/]+)", base_url)
-			if not m:
-				continue
-			href = m.group(1) + href
-		if _link_pattern.match(href):
-			links.append(href)
+		
+		# Skip empty or invalid hrefs
+		if not href:
+			continue
+		
+		# Resolve relative URLs using proper URL joining
+		resolved_url = urljoin(base_url, href)
+		
+		# Only include HTTP/HTTPS URLs
+		if _link_pattern.match(resolved_url):
+			links.append(resolved_url)
+	
 	return links
 
 
